@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+npm-debug.log
+
+# Flutter / Dart
+.build/
+.dart_tool/
+
+
+.cache/
+spleeter/
+pretrained_models/
+
+# Common
+.env
+.DS_Store
