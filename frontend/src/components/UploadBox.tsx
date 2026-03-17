@@ -11,7 +11,7 @@ interface StemResult {
   bpm?: number
 }
 
-const BASE_URL = "http://127.0.0.1:8000" // backend URL
+const BASE_URL = "https://hluza-iculo-ai.onrender.com" // backend URL
 
 export default function UploadBox() {
   const [file, setFile] = useState<File | null>(null)
