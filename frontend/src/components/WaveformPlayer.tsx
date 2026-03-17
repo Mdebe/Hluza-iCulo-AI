@@ -1,61 +1,60 @@
-import React, { useEffect, useRef, useState } from "react";
-import WaveSurfer from "wavesurfer.js";
+import { useEffect, useRef, useState } from "react"
+import WaveSurfer from "wavesurfer.js"
 
-interface Props {
-  audioUrl: string;
+type Props = {
+  audioUrl: string
 }
 
 export default function WaveformPlayer({ audioUrl }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const waveSurferRef = useRef<WaveSurfer | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) return
 
-    // Destroy previous instance if any
-    wavesurferRef.current?.destroy();
+    // Destroy previous instance
+    if (waveSurferRef.current) {
+      waveSurferRef.current.destroy()
+      waveSurferRef.current = null
+    }
 
-    // Create new WaveSurfer instance
     const ws = WaveSurfer.create({
       container: containerRef.current,
+      waveColor: "#9ca3af",
+      progressColor: "#ef4444",
+      cursorColor: "#ef4444",
       height: 80,
-      waveColor: "#CBD5E1",
-      progressColor: "#3B82F6",
-      cursorColor: "#3B82F6",
-      barWidth: 2,
       normalize: true,
-      backend: "MediaElement",
-    });
+    })
 
-    ws.load(audioUrl);
+    waveSurferRef.current = ws
+    ws.load(audioUrl)
 
-    ws.on("play", () => setIsPlaying(true));
-    ws.on("pause", () => setIsPlaying(false));
+    ws.on("play", () => setIsPlaying(true))
+    ws.on("pause", () => setIsPlaying(false))
+    ws.on("finish", () => setIsPlaying(false))
 
-    wavesurferRef.current = ws;
-
-    // Cleanup on unmount
     return () => {
-      ws.destroy();
-    };
-  }, [audioUrl]);
+      ws.destroy()
+      waveSurferRef.current = null
+    }
+  }, [audioUrl])
 
   const togglePlay = () => {
-    wavesurferRef.current?.playPause();
-  };
+    if (!waveSurferRef.current) return
+    waveSurferRef.current.playPause()
+  }
 
   return (
     <div className="w-full">
-      <div ref={containerRef} />
-      <div className="flex justify-center mt-2">
-        <button
-          onClick={togglePlay}
-          className="bg-blue-600 text-white px-4 py-1 rounded-lg hover:bg-blue-700"
-        >
-          {isPlaying ? "Pause" : "Play"}
-        </button>
-      </div>
+      <div ref={containerRef} className="w-full mb-2" />
+      <button
+        onClick={togglePlay}
+        className="w-full py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+      >
+        {isPlaying ? "⏸ Pause" : "▶ Play"}
+      </button>
     </div>
-  );
+  )
 }

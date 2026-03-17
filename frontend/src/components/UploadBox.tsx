@@ -1,88 +1,157 @@
-import React, { useState } from "react";
-import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
-import WaveformPlayer from "./WaveformPlayer";
+import React, { useState } from "react"
+import axios from "axios"
+import toast, { Toaster } from "react-hot-toast"
+import WaveformPlayer from "./WaveformPlayer"
 
 interface StemResult {
-  vocals: string;
-  instrumental: string;
-  bpm?: number;
+  vocals: string
+  drums?: string
+  bass?: string
+  other?: string
+  bpm?: number
 }
 
+const BASE_URL = "http://127.0.0.1:8000" // backend URL
+
 export default function UploadBox() {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [resultStems, setResultStems] = useState<StemResult | null>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [resultStems, setResultStems] = useState<StemResult | null>(null)
+  const [stemMode, setStemMode] = useState<"2stems" | "4stems">("4stems")
+  const [dragOver, setDragOver] = useState(false)
 
+  /* --- File selection --- */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] || null;
-    setFile(f);
-    if (f) setPreviewUrl(URL.createObjectURL(f));
-  };
+    const f = e.target.files?.[0] || null
+    setFile(f)
+    if (f) setPreviewUrl(URL.createObjectURL(f))
+  }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const f = e.dataTransfer.files?.[0] || null
+    setFile(f)
+    if (f) setPreviewUrl(URL.createObjectURL(f))
+  }
+
+  /* --- Download helper --- */
+  const downloadFile = async (url: string, filename: string) => {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const link = document.createElement("a")
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  /* --- Upload & Process --- */
   const handleUpload = async () => {
-    if (!file) return toast.error("🎵 Please select an audio file first!");
-    setProcessing(true);
-    setProgress(0);
-    setResultStems(null);
+    if (!file) return toast.error("🎵 Please select an audio file!")
+    setProcessing(true)
+    setProgress(0)
+    setResultStems(null)
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("mode", stemMode)
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/separate", formData, {
+      const res = await axios.post(`${BASE_URL}/separate`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) =>
           setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
-      });
+      })
 
+      const data = res.data
       const stems: StemResult = {
-        vocals: `http://127.0.0.1:8000${res.data.vocals}`,
-        instrumental: `http://127.0.0.1:8000${res.data.instrumental}`,
-        bpm: res.data.bpm,
-      };
+        vocals: `${BASE_URL}${data.vocals}`,
+        drums: data.drums ? `${BASE_URL}${data.drums}` : undefined,
+        bass: data.bass ? `${BASE_URL}${data.bass}` : undefined,
+        other: data.other ? `${BASE_URL}${data.other}` : undefined,
+        bpm: data.bpm,
+      }
 
-      setResultStems(stems);
-      toast.success("✅ Separation complete!");
+      setResultStems(stems)
+      toast.success(
+        `✅ ${stemMode === "2stems" ? "2-Stem" : "4-Stem"} Separation Complete!`
+      )
     } catch (err) {
-      console.error(err);
-      toast.error("❌ Upload or processing failed");
+      console.error(err)
+      toast.error("❌ Upload or processing failed")
     } finally {
-      setProcessing(false);
+      setProcessing(false)
     }
-  };
+  }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files?.[0] || null;
-    setFile(f);
-    if (f) setPreviewUrl(URL.createObjectURL(f));
-  };
+  /* --- Stem Card --- */
+  const StemCard = ({
+    title,
+    audio,
+    downloadName,
+  }: {
+    title: string
+    audio: string
+    downloadName: string
+  }) => (
+    <div className="bg-white/50 dark:bg-gray-800/60 rounded-xl p-4 shadow-md backdrop-blur-md">
+      <h3 className="text-lg sm:text-xl font-semibold mb-3 text-center">
+        {title}
+      </h3>
+      <WaveformPlayer audioUrl={audio} />
+      <button
+        onClick={() => downloadFile(audio, downloadName)}
+        className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+      >
+        ⬇ Download
+      </button>
+    </div>
+  )
 
   return (
     <div className="max-w-3xl w-full mx-auto p-4 sm:p-8">
       <Toaster />
-
       <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-10 border border-white/20 text-gray-900 dark:text-gray-100 relative overflow-hidden">
+        {/* Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-indigo-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
 
         <h1 className="relative text-3xl sm:text-4xl font-extrabold mb-8 text-center text-gray-800 dark:text-white">
-          🎧 Vocal & Instrumental Remover 
+          🎧 Audio Stem Splitter
         </h1>
+
+        {/* Stem Mode */}
+        <div className="flex justify-center mb-6 gap-4">
+          <button
+            className={`px-6 py-2 rounded-xl font-semibold ${
+              stemMode === "2stems" ? "bg-red-500 text-white" : "bg-gray-200"
+            }`}
+            onClick={() => setStemMode("2stems")}
+          >
+            2 Stems
+          </button>
+          <button
+            className={`px-6 py-2 rounded-xl font-semibold ${
+              stemMode === "4stems" ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+            onClick={() => setStemMode("4stems")}
+          >
+            4 Stems
+          </button>
+        </div>
 
         {/* Upload Area */}
         <div
@@ -102,9 +171,7 @@ export default function UploadBox() {
             onChange={handleFileChange}
           />
           <p className="text-gray-600 text-lg">
-            {file
-              ? `🎵 Selected: ${file.name}`
-              : "Drag & drop your song or click to upload"}
+            {file ? `🎵 Selected: ${file.name}` : "Drag & drop your song or click to upload"}
           </p>
         </div>
 
@@ -122,13 +189,13 @@ export default function UploadBox() {
           className={`w-full py-4 text-white rounded-xl font-semibold mb-6 text-lg shadow-lg ${
             processing
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-300"
+              : "bg-gradient-to-r from-red-600 to-blue-600 hover:from-red-700 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-300"
           }`}
         >
-          {processing ? "Processing..." : "Upload & Extract"}
+          {processing ? "Processing..." : "Process Audio"}
         </button>
 
-        {/* Progress Bar */}
+        {/* Progress */}
         {processing && (
           <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-6">
             <div
@@ -145,52 +212,22 @@ export default function UploadBox() {
               🎶 Separated Stems
             </h2>
 
-            {/* BPM Display */}
-            {resultStems.bpm && (
-              <div className="flex flex-col items-center mb-8">
-                <div className="relative flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-2xl animate-pulse shadow-lg">
-                  {resultStems.bpm} <span className="text-sm ml-1">BPM</span>
-                </div>
-                <p className="mt-3 text-gray-700 dark:text-gray-300 font-semibold">
-                  Detected Tempo
-                </p>
-              </div>
-            )}
-
+            {/* Stem Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Vocals */}
-              <div className="bg-white/50 dark:bg-gray-800/60 rounded-xl p-4 shadow-md backdrop-blur-md">
-                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-center">
-                  🎤 Vocals
-                </h3>
-                <WaveformPlayer audioUrl={resultStems.vocals} />
-                <a
-                  href={resultStems.vocals}
-                  download="vocals.wav"
-                  className="mt-2 inline-block w-full text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
-                >
-                  Download Vocals
-                </a>
-              </div>
-
-              {/* Instrumental */}
-              <div className="bg-white/50 dark:bg-gray-800/60 rounded-xl p-4 shadow-md backdrop-blur-md">
-                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-center">
-                  🎹 Instrumental
-                </h3>
-                <WaveformPlayer audioUrl={resultStems.instrumental} />
-                <a
-                  href={resultStems.instrumental}
-                  download="instrumental.wav"
-                  className="mt-2 inline-block w-full text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
-                >
-                  Download Instrumental
-                </a>
-              </div>
+              <StemCard title="🎤 Vocals" audio={resultStems.vocals} downloadName="vocals.wav" />
+              {stemMode === "4stems" && resultStems.drums && (
+                <StemCard title="🥁 Drums" audio={resultStems.drums} downloadName="drums.wav" />
+              )}
+              {stemMode === "4stems" && resultStems.bass && (
+                <StemCard title="🎸 Bass" audio={resultStems.bass} downloadName="bass.wav" />
+              )}
+              {stemMode === "4stems" && resultStems.other && (
+                <StemCard title="🎧 Other" audio={resultStems.other} downloadName="other.wav" />
+              )}
             </div>
           </div>
         )}
       </div>
     </div>
-  );
+  )
 }
