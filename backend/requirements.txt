@@ -1,23 +1,13 @@
-# Core server
 fastapi==0.110.0
 uvicorn==0.27.1
-
-# Audio processing
 numpy==1.23.5
 scipy==1.10.1
 librosa==0.9.2
 soundfile==0.12.1
 ffmpeg-python==0.2.0
-
-# ML / Spleeter
 tensorflow-cpu==2.10.1
 spleeter==2.1.0
-
-# Build tools
-pip==23.2.1
-setuptools==67.8.0
-wheel==0.40.0
-
-# Optional: CORS for frontend requests
 python-multipart==0.0.6
 aiofiles==23.1.0
+setuptools==67.8.0
+wheel==0.40.0
